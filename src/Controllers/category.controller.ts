@@ -32,7 +32,8 @@ export async function listCategoriesController(_req: Request, res: Response, nex
 
 export async function getCategoryByIdController(req: Request, res: Response, next: NextFunction) {
   try {
-    const category = await getCategoryById(req.params.id);
+    const id = String(req.params.id);
+    const category = await getCategoryById(id);
     if (!category) return res.status(404).json({ message: "Category no encontrada" });
     return res.json(category);
   } catch (err) {
@@ -42,8 +43,9 @@ export async function getCategoryByIdController(req: Request, res: Response, nex
 
 export async function updateCategoryController(req: Request, res: Response, next: NextFunction) {
   try {
+    const id = String(req.params.id);
     const patch = req.body ?? {};
-    const updated = await updateCategory(req.params.id, patch);
+    const updated = await updateCategory(id, patch);
     if (!updated) return res.status(404).json({ message: "Category no encontrada" });
     return res.json(updated);
   } catch (err) {
@@ -53,9 +55,10 @@ export async function updateCategoryController(req: Request, res: Response, next
 
 export async function deleteCategoryController(req: Request, res: Response, next: NextFunction) {
   try {
-    const existing = await getCategoryById(req.params.id);
+    const id = String(req.params.id);
+    const existing = await getCategoryById(id);
     if (!existing) return res.status(404).json({ message: "Category no encontrada" });
-    await deleteCategory(req.params.id);
+    await deleteCategory(id);
     return res.status(204).send();
   } catch (err) {
     next(err as Error);

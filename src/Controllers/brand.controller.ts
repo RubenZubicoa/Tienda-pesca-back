@@ -32,7 +32,8 @@ export async function listBrandsController(_req: Request, res: Response, next: N
 
 export async function getBrandByIdController(req: Request, res: Response, next: NextFunction) {
   try {
-    const brand = await getBrandById(req.params.id);
+    const id = String(req.params.id);
+    const brand = await getBrandById(id);
     if (!brand) return res.status(404).json({ message: "Brand no encontrada" });
     return res.json(brand);
   } catch (err) {
@@ -42,8 +43,9 @@ export async function getBrandByIdController(req: Request, res: Response, next: 
 
 export async function updateBrandController(req: Request, res: Response, next: NextFunction) {
   try {
+    const id = String(req.params.id);
     const patch = req.body ?? {};
-    const updated = await updateBrand(req.params.id, patch);
+    const updated = await updateBrand(id, patch);
     if (!updated) return res.status(404).json({ message: "Brand no encontrada" });
     return res.json(updated);
   } catch (err) {
@@ -53,9 +55,10 @@ export async function updateBrandController(req: Request, res: Response, next: N
 
 export async function deleteBrandController(req: Request, res: Response, next: NextFunction) {
   try {
-    const existing = await getBrandById(req.params.id);
+    const id = String(req.params.id);
+    const existing = await getBrandById(id);
     if (!existing) return res.status(404).json({ message: "Brand no encontrada" });
-    await deleteBrand(req.params.id);
+    await deleteBrand(id);
     return res.status(204).send();
   } catch (err) {
     next(err as Error);

@@ -3,6 +3,7 @@ import {
   createProduct,
   deleteProduct,
   getProductByBrandId,
+  getProductByCategoryId,
   getProductById,
   listProducts,
   updateProduct,
@@ -68,6 +69,15 @@ export async function getProductByIdController(req: Request, res: Response, next
 export async function getProductByBrandIdController(req: Request, res: Response, next: NextFunction) {
   try {
     const products = await getProductByBrandId(req.params.brandId as string);
+    return res.json(products);
+  } catch (err) {
+    next(err as Error);
+  }
+}
+
+export async function getProductByCategoryIdController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const products = await getProductByCategoryId(req.params.categoryId as string);
     return res.json(products);
   } catch (err) {
     next(err as Error);

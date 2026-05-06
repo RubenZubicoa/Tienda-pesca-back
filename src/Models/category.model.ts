@@ -14,10 +14,7 @@ export async function createCategory(
 }
 
 export async function listCategories() {
-  return await collection
-    .find({ isDeleted: { $ne: true } })
-    .sort({ createdAt: -1 })
-    .toArray();
+  return await collection.find().toArray();
 }
 
 export async function getCategoryById(id: string) {

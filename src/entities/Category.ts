@@ -2,9 +2,9 @@ import { ObjectId } from "mongodb";
 
 export type Category = {
     _id?: ObjectId;
-    name: string;
+    label: string;
     description?: string;
-    parentId?: string;
+    children?: Category[];
     createdAt?: number;
     updatedAt?: number;
     isDeleted?: boolean;

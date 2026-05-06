@@ -29,6 +29,10 @@ export async function getProductByBrandId(brandId: string) {
   return await collection.find({ brandId, isDeleted: { $ne: true } }).toArray();
 }
 
+export async function getProductByCategoryId(categoryId: string) {
+  return await collection.find({ categoryId, isDeleted: { $ne: true } }).toArray();
+}
+
 export async function updateProduct(id: string, patch: Partial<Omit<Product, "_id" | "createdAt">>) {
   const _id = new ObjectId(id);
   const updatedAt = Date.now();

@@ -9,12 +9,12 @@ import {
 
 export async function createCategoryController(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, description, parentId } = req.body ?? {};
-    if (!name || typeof name !== "string") {
+    const { label, description, children } = req.body ?? {};
+    if (!label || typeof label !== "string") {
       return res.status(400).json({ message: "El campo 'name' es obligatorio" });
     }
 
-    const created = await createCategory({ name, description, parentId });
+    const created = await createCategory({ label, description, children });
     return res.status(201).json(created);
   } catch (err) {
     next(err as Error);

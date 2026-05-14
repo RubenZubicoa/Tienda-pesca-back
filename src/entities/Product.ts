@@ -14,3 +14,7 @@ export type Product = {
     updatedAt?: number;
     isDeleted?: boolean;
 }
+
+export type ProductWithQuantity = Product & {
+    quantity: number;
+}

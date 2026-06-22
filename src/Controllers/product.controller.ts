@@ -8,28 +8,35 @@ import {
   listProducts,
   updateProduct,
 } from "../Models/product.model";
+import { uploadToCloudinary } from "../libs/cloudinary";
 
 export async function createProductController(req: Request, res: Response, next: NextFunction) {
   try {
-    const { brandId, categoryId, name, description, price, stock, images } = req.body ?? {};
-
-    if (!brandId || typeof brandId !== "string") {
-      return res.status(400).json({ message: "El campo 'brandId' es obligatorio" });
-    }
+    const { brandId, categoryId, name, description, price, stock } = req.body ?? {};
+    const priceNumber = Number(price);
+    const stockNumber = Number(stock);
+    
     if (!categoryId || typeof categoryId !== "string") {
       return res.status(400).json({ message: "El campo 'categoryId' es obligatorio" });
     }
     if (!name || typeof name !== "string") {
       return res.status(400).json({ message: "El campo 'name' es obligatorio" });
     }
-    if (typeof price !== "number") {
+    if (typeof priceNumber !== "number") {
       return res.status(400).json({ message: "El campo 'price' debe ser number" });
     }
-    if (typeof stock !== "number") {
+    if (typeof stockNumber !== "number") {
       return res.status(400).json({ message: "El campo 'stock' debe ser number" });
     }
-    if (!Array.isArray(images) || images.some((x) => typeof x !== "string")) {
-      return res.status(400).json({ message: "El campo 'images' debe ser string[]" });
+
+    const imagesUrls: string[] = [];
+    const images = req.files as Express.Multer.File[];
+    for await (const image of images) {
+      const imageUrl = await uploadToCloudinary(image);
+      if (!imageUrl) {
+        return res.status(400).json({ message: "Error al subir la imagen del producto" });
+      }
+      imagesUrls.push(imageUrl);
     }
 
     const created = await createProduct({
@@ -39,7 +46,7 @@ export async function createProductController(req: Request, res: Response, next:
       description,
       price,
       stock,
-      images,
+      images: imagesUrls,
     });
     return res.status(201).json(created);
   } catch (err) {

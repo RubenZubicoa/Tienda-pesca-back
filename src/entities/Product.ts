@@ -1,5 +1,12 @@
 import { ObjectId } from "mongodb";
-import { Brand } from "./Brand";
+
+type ProductOption = {
+    label: string;
+    options: {
+        id: string;
+        label: string;
+    }[];
+};
 
 export type Product = {
     _id?: ObjectId;
@@ -10,6 +17,7 @@ export type Product = {
     stock: number;
     categoryId: string;
     images: string[];
+    options?: ProductOption;
     createdAt?: number;
     updatedAt?: number;
     isDeleted?: boolean;

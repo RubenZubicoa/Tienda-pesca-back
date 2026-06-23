@@ -2,16 +2,13 @@ import express, { type Application } from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 
-const server: Application = express();
 
-import brandRoutes from "./Routes/brand.routes";
-import categoryRoutes from "./Routes/category.routes";
-import productRoutes from "./Routes/product.routes";
 import { errorMiddleware } from './middlewares/error.middeware';
-import loginRoutes from './Routes/login.routes';
 import { authMiddleware } from './middlewares/auth.middleware';
-import orderRoutes from './Routes/order.routes';
-import userRoutes from './Routes/user.routes';
+import publicRoutes from './Routes/public-routes/index.public-routes';
+import privateRoutes from './Routes/private-routes/index.private-routes';
+
+const server: Application = express();
 
 // Middlewares
 
@@ -22,15 +19,15 @@ server.use(express.urlencoded({ extended: true }));
 
 server.use("/uploads", express.static("uploads"));
 
-server.use("/login", loginRoutes);
-server.use("/brands", brandRoutes);
-server.use("/categories", categoryRoutes);
-server.use("/products", productRoutes);
+// public routes
+
+server.use("/", publicRoutes);
+
+// private routes
 
 server.use(authMiddleware);
 
-server.use("/orders", orderRoutes);
-server.use("/users", userRoutes);
+server.use("/", privateRoutes);
 
 server.use(errorMiddleware);
 

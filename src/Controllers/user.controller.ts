@@ -1,9 +1,13 @@
 import { NextFunction, Request, Response } from "express";
-import { changePassword, createUser, deleteUser, getUserById, listUsers, updateUser } from "../Models/user.model";
+import { changePassword, createUser, deleteUser, getUserByEmail, getUserById, listUsers, updateUser } from "../Models/user.model";
 
 export async function createUserController(req: Request, res: Response, next: NextFunction) {
   try {
     const { name, lastName, phone, address, email, password, role } = req.body ?? {};
+    const user = await getUserByEmail(email);
+    if (user) {
+      return res.status(400).json({ message: "El email ya está en uso, intente con otro o inicie sesión" });
+    }
     const created = await createUser({ name, lastName, phone, address, email, password, role });
     return res.status(201).json(created);
   } catch (err) {

@@ -25,7 +25,7 @@ server.use("/", publicRoutes);
 
 // private routes
 
-server.use(authMiddleware);
+// server.use(authMiddleware);
 
 server.use("/", privateRoutes);
 

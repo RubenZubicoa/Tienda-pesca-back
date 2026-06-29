@@ -1,12 +1,12 @@
 import { NextFunction, Request, Response } from "express";
-import { AddOrder } from "../entities/Order";
+import { AddOrder, isAddOrder } from "../entities/Order";
 import { createOrder, deleteOrder, getOrderById, listOrders, updateOrder } from "../Models/order.model";
 
 export async function createOrderController(req: Request, res: Response, next: NextFunction) {
     try {
-        const order = req.body;
-        if (!order) {
-            return res.status(400).json({ message: "El campo 'order' es obligatorio" });
+        const order: AddOrder = req.body;
+        if (!isAddOrder(order)) {
+            return res.status(400).json({ message: "El campo 'order' es obligatorio y debe ser un objeto válido" });
         }
         const created = await createOrder(order);
         return res.status(201).json(created);

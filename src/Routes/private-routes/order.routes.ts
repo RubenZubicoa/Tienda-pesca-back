@@ -4,7 +4,7 @@ import { createOrderController, deleteOrderController, getOrderByIdController, l
 const router = Router();
 
 router.post("/", createOrderController);
-    router.get("/", listOrdersController);
+router.get("/", listOrdersController);
 router.get("/:id", getOrderByIdController);
 router.put("/:id", updateOrderController);
 router.delete("/:id", deleteOrderController);

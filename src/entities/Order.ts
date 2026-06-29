@@ -1,5 +1,4 @@
 import { ObjectId } from "mongodb";
-import { ProductWithQuantity } from "./Product";
 
 export type OrderStatus = 'pending' | 'completed' | 'cancelled' | 'shipped' | 'delivered' | 'returned';
 
@@ -16,11 +15,13 @@ export type OrderFilters = {
 
 export type Order = {
     _id?: ObjectId;
-    username: string;
+    dni: string;
+    name: string;
+    lastName: string;
     address: string;
     phone: string;
     email: string;
-    products: ProductWithQuantity[];
+    products: {uuid: string; productName: string; qty: number; price: number}[];
     status: OrderStatus;
     createdAt: number;
     updatedAt?: number;
@@ -31,5 +32,9 @@ export type AddOrder = Omit<Order, '_id' | 'createdAt' | 'updatedAt' | 'status'>
 export type UpdateOrder = Omit<Order, '_id' | 'createdAt' | 'updatedAt'>;
 
 export function isOrder(obj: unknown): obj is Order {
-    return typeof obj === 'object' && obj !== null && '_id' in obj && 'username' in obj && 'address' in obj && 'phone' in obj && 'email' in obj && 'products' in obj && 'status' in obj;
+    return typeof obj === 'object' && obj !== null && '_id' in obj && 'dni' in obj && 'name' in obj && 'lastName' in obj && 'address' in obj && 'phone' in obj && 'email' in obj && 'products' in obj && 'status' in obj;
+}
+
+export function isAddOrder(obj: unknown): obj is AddOrder {
+    return typeof obj === 'object' && obj !== null && 'dni' in obj && 'name' in obj && 'lastName' in obj && 'address' in obj && 'phone' in obj && 'email' in obj && 'products' in obj;
 }

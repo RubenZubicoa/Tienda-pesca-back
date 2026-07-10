@@ -4,11 +4,11 @@ import {
   deleteProductController,
   updateProductController,
 } from "../../Controllers/product.controller";
-import multer from "../../libs/multer";
+import { uploadProductImages } from "../../middlewares/upload.middleware";
 
 const router = Router();
 
-router.post("/", multer.array('images'), createProductController);
+router.post("/", uploadProductImages, createProductController);
 router.put("/:id", updateProductController);
 router.delete("/:id", deleteProductController);
 

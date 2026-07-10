@@ -12,10 +12,11 @@ import { uploadToCloudinary } from "../libs/cloudinary";
 
 export async function createProductController(req: Request, res: Response, next: NextFunction) {
   try {
-    const { brandId, categoryId, name, description, price, stock } = req.body ?? {};
+    const { brandId, categoryId, name, description, price, stock, options } = req.body ?? {};
     const priceNumber = Number(price);
     const stockNumber = Number(stock);
-    
+
+    console.log(req.body);
     if (!categoryId || typeof categoryId !== "string") {
       return res.status(400).json({ message: "El campo 'categoryId' es obligatorio" });
     }
@@ -30,7 +31,7 @@ export async function createProductController(req: Request, res: Response, next:
     }
 
     const imagesUrls: string[] = [];
-    const images = req.files as Express.Multer.File[];
+    const images = (req.files as Express.Multer.File[]) ?? [];
     for await (const image of images) {
       const imageUrl = await uploadToCloudinary(image);
       if (!imageUrl) {
@@ -47,6 +48,7 @@ export async function createProductController(req: Request, res: Response, next:
       price,
       stock,
       images: imagesUrls,
+      options,
     });
     return res.status(201).json(created);
   } catch (err) {
@@ -84,8 +86,10 @@ export async function getProductByBrandIdController(req: Request, res: Response,
 
 export async function getProductByCategoryIdController(req: Request, res: Response, next: NextFunction) {
   try {
-    const products = await getProductByCategoryId(req.params.categoryId as string);
-    return res.json(products);
+    const page = Number(req.query.page) || 1;
+    const pageSize = Number(req.query.pageSize) || 10;
+    const response = await getProductByCategoryId(req.params.categoryId as string, page, pageSize);
+    return res.json(response);
   } catch (err) {
     next(err as Error);
   }

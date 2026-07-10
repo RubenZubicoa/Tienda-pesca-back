@@ -14,8 +14,16 @@ const server: Application = express();
 
 server.use(morgan('dev'));
 server.use(cors());
-server.use(express.json());
-server.use(express.urlencoded({ extended: true }));
+
+// No parsear multipart aquí: multer necesita el stream intacto
+server.use((req, res, next) => {
+  if (req.is('multipart/form-data')) return next();
+  express.json({ limit: '10mb' })(req, res, next);
+});
+server.use((req, res, next) => {
+  if (req.is('multipart/form-data')) return next();
+  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+});
 
 server.use("/uploads", express.static("uploads"));
 

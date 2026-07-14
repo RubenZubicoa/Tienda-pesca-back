@@ -9,7 +9,7 @@ import { uploadProductImages } from "../../middlewares/upload.middleware";
 const router = Router();
 
 router.post("/", uploadProductImages, createProductController);
-router.put("/:id", updateProductController);
+router.put("/:id", uploadProductImages, updateProductController);
 router.delete("/:id", deleteProductController);
 
 export default router;

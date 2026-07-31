@@ -38,7 +38,7 @@ async function uploadProductImageFiles(files: Express.Multer.File[]): Promise<st
 
 export async function createProductController(req: Request, res: Response, next: NextFunction) {
   try {
-    const { brandId, categoryId, name, description, price, stock, options } = req.body ?? {};
+    const { brandId, categoryId, name, description, price, stock, options, isFeatured, isInOffer, offerPrice } = req.body ?? {};
     const priceNumber = Number(price);
     const stockNumber = Number(stock);
 
@@ -70,6 +70,9 @@ export async function createProductController(req: Request, res: Response, next:
       stock,
       images: imagesUrls,
       options,
+      isFeatured,
+      isInOffer,
+      offerPrice,
     });
     return res.status(201).json(created);
   } catch (err) {

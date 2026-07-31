@@ -18,6 +18,9 @@ export type Product = {
     categoryId: string;
     images: string[];
     options?: ProductOption;
+    isFeatured?: boolean;
+    isInOffer?: boolean;
+    offerPrice?: number;
     createdAt?: number;
     updatedAt?: number;
     isDeleted?: boolean;

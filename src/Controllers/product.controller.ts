@@ -38,7 +38,7 @@ async function uploadProductImageFiles(files: Express.Multer.File[]): Promise<st
 
 export async function createProductController(req: Request, res: Response, next: NextFunction) {
   try {
-    const { brandId, categoryId, name, description, price, stock, options, isFeatured, isInOffer, offerPrice } = req.body ?? {};
+    const { brandId, categoryId, name, description, price, stock, options, isFeatured, isInOffer, offerPrice, professionalPrice } = req.body ?? {};
     const priceNumber = Number(price);
     const stockNumber = Number(stock);
 
@@ -67,6 +67,7 @@ export async function createProductController(req: Request, res: Response, next:
       name,
       description,
       price,
+      professionalPrice: professionalPrice !== undefined ? Number(professionalPrice) : undefined,
       stock,
       images: imagesUrls,
       options,
@@ -130,6 +131,7 @@ export async function updateProductController(req: Request, res: Response, next:
     const patch: Record<string, unknown> = { ...rest };
 
     if (patch.price !== undefined) patch.price = Number(patch.price);
+    if (patch.professionalPrice !== undefined) patch.professionalPrice = Number(patch.professionalPrice);
     if (patch.stock !== undefined) patch.stock = Number(patch.stock);
 
     const uploadedFiles = (req.files as Express.Multer.File[]) ?? [];

@@ -14,6 +14,7 @@ export type Product = {
     name: string;
     description?: string;
     price: number;
+    professionalPrice?: number;
     stock: number;
     categoryId: string;
     images: string[];

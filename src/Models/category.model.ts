@@ -86,6 +86,39 @@ export async function createCategory(
   return { ...doc, _id: result.insertedId };
 }
 
+export async function createSubcategory(
+  parentId: string,
+  input: Omit<Category, "_id" | "createdAt" | "updatedAt" | "isDeleted" | "children">
+) {
+  const parent = await collection.findOne({
+    _id: new ObjectId(parentId),
+    isDeleted: { $ne: true },
+  });
+  if (!parent) return null;
+
+  const now = Date.now();
+  const child: Category = {
+    _id: new ObjectId(),
+    label: input.label.trim(),
+    description: input.description,
+    image: input.image,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await collection.updateOne(
+    { _id: parent._id, isDeleted: { $ne: true } },
+    {
+      $set: {
+        updatedAt: now,
+        children: [...(parent.children ?? []), child],
+      },
+    }
+  );
+
+  return child;
+}
+
 export async function listCategories() {
   return await collection.find({ isDeleted: { $ne: true } }).toArray();
 }

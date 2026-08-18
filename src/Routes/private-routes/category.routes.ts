@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createCategoryController,
+  createSubcategoryController,
   deleteCategoryController,
   updateCategoryController,
   updateSubcategoryController,
@@ -10,6 +11,7 @@ import { uploadCategoryImage } from "../../middlewares/upload.middleware";
 const router = Router();
 
 router.post("/", uploadCategoryImage, createCategoryController);
+router.post("/:categoryId/subcategories", uploadCategoryImage, createSubcategoryController);
 router.put("/:categoryId/subcategories/:subcategoryId", uploadCategoryImage, updateSubcategoryController);
 router.put("/:id", uploadCategoryImage, updateCategoryController);
 router.patch("/:id", uploadCategoryImage, updateCategoryController);

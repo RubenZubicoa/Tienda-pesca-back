@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import {
   CategoryValidationError,
   createCategory,
+  createSubcategory,
   deleteCategory,
   getCategoryById,
   listCategories,
@@ -62,6 +63,26 @@ export async function updateCategoryController(req: Request, res: Response, next
     const updated = await updateCategoryFromBody(id, req.body, req.file as Express.Multer.File | undefined);
     if (!updated) return res.status(404).json({ message: "Category no encontrada" });
     return res.json(updated);
+  } catch (err) {
+    if (err instanceof CategoryValidationError) {
+      return res.status(400).json({ message: err.message });
+    }
+    next(err as Error);
+  }
+}
+
+export async function createSubcategoryController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const parentId = String(req.params.categoryId);
+    const { label, description } = req.body ?? {};
+    if (!label || typeof label !== "string" || !label.trim()) {
+      return res.status(400).json({ message: "El campo 'label' es obligatorio" });
+    }
+
+    const image = await uploadCategoryImageFile(req.file as Express.Multer.File | undefined);
+    const created = await createSubcategory(parentId, { label, description, image });
+    if (!created) return res.status(404).json({ message: "Categoría padre no encontrada" });
+    return res.status(201).json(created);
   } catch (err) {
     if (err instanceof CategoryValidationError) {
       return res.status(400).json({ message: err.message });

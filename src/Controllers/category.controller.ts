@@ -7,6 +7,16 @@ import {
   listCategories,
   updateCategory,
 } from "../Models/category.model";
+import { uploadToCloudinary } from "../libs/cloudinary";
+
+async function uploadCategoryImageFile(file?: Express.Multer.File): Promise<string | undefined> {
+  if (!file) return undefined;
+  const imageUrl = await uploadToCloudinary(file);
+  if (!imageUrl) {
+    throw new CategoryValidationError("Error al subir la imagen de la categoría");
+  }
+  return imageUrl;
+}
 
 export async function createCategoryController(req: Request, res: Response, next: NextFunction) {
   try {
@@ -15,7 +25,8 @@ export async function createCategoryController(req: Request, res: Response, next
       return res.status(400).json({ message: "El campo 'label' es obligatorio" });
     }
 
-    const created = await createCategory({ label, description, children });
+    const image = await uploadCategoryImageFile(req.file as Express.Multer.File | undefined);
+    const created = await createCategory({ label, description, image, children });
     return res.status(201).json(created);
   } catch (err) {
     if (err instanceof CategoryValidationError) {
@@ -48,7 +59,7 @@ export async function getCategoryByIdController(req: Request, res: Response, nex
 export async function updateCategoryController(req: Request, res: Response, next: NextFunction) {
   try {
     const id = String(req.params.id);
-    const updated = await updateCategoryFromBody(id, req.body);
+    const updated = await updateCategoryFromBody(id, req.body, req.file as Express.Multer.File | undefined);
     if (!updated) return res.status(404).json({ message: "Category no encontrada" });
     return res.json(updated);
   } catch (err) {
@@ -76,7 +87,11 @@ export async function updateSubcategoryController(req: Request, res: Response, n
       return res.status(404).json({ message: "Subcategoría no encontrada" });
     }
 
-    const updated = await updateCategoryFromBody(subcategoryId, req.body);
+    const updated = await updateCategoryFromBody(
+      subcategoryId,
+      req.body,
+      req.file as Express.Multer.File | undefined
+    );
     if (!updated) return res.status(404).json({ message: "Category no encontrada" });
     return res.json(updated);
   } catch (err) {
@@ -87,11 +102,12 @@ export async function updateSubcategoryController(req: Request, res: Response, n
   }
 }
 
-async function updateCategoryFromBody(id: string, body: unknown) {
+async function updateCategoryFromBody(id: string, body: unknown, file?: Express.Multer.File) {
   const { label, description, children } = (body as Record<string, unknown>) ?? {};
   const patch: {
     label?: string;
     description?: string;
+    image?: string;
     children?: unknown;
   } = {};
 
@@ -107,6 +123,11 @@ async function updateCategoryFromBody(id: string, body: unknown) {
       throw new CategoryValidationError("El campo 'description' debe ser un texto");
     }
     patch.description = description;
+  }
+
+  const image = await uploadCategoryImageFile(file);
+  if (image) {
+    patch.image = image;
   }
 
   if (children !== undefined) {

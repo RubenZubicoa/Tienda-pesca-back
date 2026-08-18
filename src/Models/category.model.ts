@@ -38,7 +38,7 @@ export function normalizeChildren(
       throw new CategoryValidationError("Cada subcategoría debe tener un 'label' válido");
     }
 
-    const input = child as { _id?: string; label: string; description?: string };
+    const input = child as { _id?: string; label: string; description?: string; image?: string };
     if (typeof input.label !== "string" || !input.label.trim()) {
       throw new CategoryValidationError("Cada subcategoría debe tener un 'label' válido");
     }
@@ -50,6 +50,7 @@ export function normalizeChildren(
       _id,
       label: input.label.trim(),
       description: typeof input.description === "string" ? input.description : undefined,
+      image: typeof input.image === "string" ? input.image : existing?.image,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
@@ -75,6 +76,7 @@ export async function createCategory(
   const doc: Category = {
     label: input.label.trim(),
     description: input.description,
+    image: input.image,
     children: input.children ? normalizeChildren(input.children, undefined, now) : undefined,
     createdAt: now,
     updatedAt: now,
@@ -125,12 +127,14 @@ export async function updateCategory(
         label: typeof patch.label === "string" ? patch.label.trim() : child.label,
         description:
           typeof patch.description === "string" ? patch.description : child.description,
+        image: typeof patch.image === "string" ? patch.image : child.image,
         updatedAt,
       };
     });
   } else {
     if (typeof patch.label === "string") update.label = patch.label.trim();
     if (patch.description !== undefined) update.description = patch.description;
+    if (typeof patch.image === "string") update.image = patch.image;
     if (patch.children !== undefined) {
       update.children = normalizeChildren(patch.children, existing.children, updatedAt);
     }

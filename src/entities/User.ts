@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 
 export type User = {
     _id?: ObjectId;
+    dni: string;
     name: string;
     lastName: string;
     phone: string;
@@ -9,6 +10,7 @@ export type User = {
     email: string;
     password: string;
     role: string;
+    isProfessional:boolean;
     createdAt?: number;
     updatedAt?: number;
     isDeleted?: boolean;

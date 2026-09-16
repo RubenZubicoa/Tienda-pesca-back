@@ -14,10 +14,14 @@ export type Product = {
     name: string;
     description?: string;
     price: number;
+    professionalPrice?: number;
     stock: number;
     categoryId: string;
     images: string[];
     options?: ProductOption;
+    isFeatured?: boolean;
+    isInOffer?: boolean;
+    offerPrice?: number;
     createdAt?: number;
     updatedAt?: number;
     isDeleted?: boolean;

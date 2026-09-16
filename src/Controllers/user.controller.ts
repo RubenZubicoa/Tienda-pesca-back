@@ -3,12 +3,10 @@ import { changePassword, createUser, deleteUser, getUserByEmail, getUserById, li
 
 export async function createUserController(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, lastName, phone, address, email, password, role } = req.body ?? {};
-    const user = await getUserByEmail(email);
-    if (user) {
-      return res.status(400).json({ message: "El email ya está en uso, intente con otro o inicie sesión" });
-    }
-    const created = await createUser({ name, lastName, phone, address, email, password, role });
+    const userData = req.body;
+    const user = await getUserByEmail(userData.email);
+    if (user) return res.status(400).json({ message: "El email ya está en uso, intente con otro o inicie sesión" });
+    const created = await createUser(userData);
     return res.status(201).json(created);
   } catch (err) {
     next(err as Error);

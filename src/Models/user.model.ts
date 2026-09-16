@@ -4,7 +4,10 @@ import { AddUser, UpdateUser, User } from "../entities/User";
 import { comparePassword, hashPassword } from "../libs/bcrypt";
 
 export async function getUserByEmail(email: string) {
-  const user = await database.collection<User>("users").findOne({ email });
+  const user = await database.collection<User>("users").findOne(
+    { email },
+    { collation: { locale: "en", strength: 2 } }
+  );
   return user;
 }
 

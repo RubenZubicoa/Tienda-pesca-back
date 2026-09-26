@@ -5,6 +5,7 @@ type ProductOption = {
     options: {
         id: string;
         label: string;
+        imageUrl?: string;
     }[];
 };
 
@@ -18,6 +19,7 @@ export type Product = {
     stock: number;
     categoryId: string;
     images: string[];
+    videoUrl?: string;
     options?: ProductOption;
     isFeatured?: boolean;
     isInOffer?: boolean;

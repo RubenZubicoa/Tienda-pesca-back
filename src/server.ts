@@ -4,7 +4,6 @@ import cors from 'cors';
 
 
 import { errorMiddleware } from './middlewares/error.middeware';
-import { authMiddleware } from './middlewares/auth.middleware';
 import publicRoutes from './Routes/public-routes/index.public-routes';
 import privateRoutes from './Routes/private-routes/index.private-routes';
 
@@ -31,9 +30,7 @@ server.use("/uploads", express.static("uploads"));
 
 server.use("/", publicRoutes);
 
-// private routes
-
-// server.use(authMiddleware);
+// private routes (authMiddleware se aplica dentro de private-routes)
 
 server.use("/", privateRoutes);
 

@@ -14,6 +14,7 @@ export async function uploadToCloudinary(file: Express.Multer.File) {
        .upload(
            file.path, {
                public_id: file.filename,
+               folder: process.env.CLOUDINARY_FOLDER,
            }
        )
        .catch((error) => {

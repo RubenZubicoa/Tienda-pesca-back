@@ -1,8 +1,9 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import multer from 'multer';
 
-const uploadDir = path.join(process.cwd(), 'uploads');
+const uploadDir = path.join(os.tmpdir(), 'uploads');
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -18,4 +19,3 @@ export default multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
-  

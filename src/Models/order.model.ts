@@ -4,7 +4,14 @@ import { AddOrder, Order, UpdateOrder } from "../entities/Order";
 
 export async function createOrder(order: AddOrder) {
   const now = Date.now();
-  const doc: Order = { ...order, createdAt: now, updatedAt: now, isDeleted: false, status: "pending" };
+  const doc: Order = {
+    ...order,
+    ...(order.shippingCost !== undefined ? { shippingCost: order.shippingCost } : {}),
+    createdAt: now,
+    updatedAt: now,
+    isDeleted: false,
+    status: "pending",
+  };
   const result = await database.collection<Order>("orders").insertOne(doc);
   return { ...doc, _id: result.insertedId };
 }

@@ -22,6 +22,7 @@ export type Order = {
     phone: string;
     email: string;
     products: {uuid: string; productName: string; qty: number; price: number}[];
+    shippingCost?: number;
     status: OrderStatus;
     createdAt: number;
     updatedAt?: number;

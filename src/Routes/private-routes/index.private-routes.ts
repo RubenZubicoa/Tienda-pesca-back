@@ -9,6 +9,7 @@ import productRoutes from "./product.routes";
 import orderRoutes from "./order.routes";
 import userRoutes from "./user.routes";
 import paymentRoutes from "./payment.routes";
+import shippingCostRoutes from "./shippingCost.routes";
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use("/users", userRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/newsletters", newsLetterRoutes);
 router.use("/newsletter-subscriptions", newsLetterSubscriptionRoutes);
+router.use("/shipping-costs", shippingCostRoutes);
 
 export default router;

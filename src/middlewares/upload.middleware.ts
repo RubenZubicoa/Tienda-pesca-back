@@ -60,3 +60,26 @@ export function uploadCategoryImage(req: Request, res: Response, next: NextFunct
     next();
   });
 }
+
+export function uploadNewsLetterFiles(req: Request, res: Response, next: NextFunction) {
+  const contentType = req.headers["content-type"] ?? "";
+
+  if (!contentType.includes("multipart/form-data")) {
+    return next();
+  }
+
+  if (!contentType.includes("boundary=")) {
+    return res.status(400).json({
+      message:
+        'Content-Type inválido. Usa FormData y no establezcas "Content-Type" manualmente; el cliente debe incluir el boundary automáticamente.',
+    });
+  }
+
+  multer.fields([
+    { name: "path", maxCount: 1 },
+    { name: "pathImage", maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) return next(err);
+    next();
+  });
+}

@@ -1,8 +1,11 @@
+import fs from "fs";
 import type { NextFunction, Request, Response } from "express";
 import {
   createNewsLetter,
   deleteNewsLetter,
+  fileToBinary,
   getNewsLetterById,
+  getNewsLetterDocumentById,
   listNewsLetters,
   updateNewsLetter,
 } from "../Models/newsLetter.model";
@@ -20,6 +23,22 @@ function getNewsLetterFiles(req: Request): NewsLetterFiles {
   return (req.files as NewsLetterFiles | undefined) ?? {};
 }
 
+function getBaseUrl(req: Request): string {
+  const configured = process.env.PUBLIC_API_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+  return `${req.protocol}://${req.get("host")}`;
+}
+
+function buildDocumentPath(req: Request, id: string): string {
+  return `${getBaseUrl(req)}/newsletters/${id}/document`;
+}
+
+function readUploadedFile(file: Express.Multer.File): Buffer {
+  const buffer = fs.readFileSync(file.path);
+  fs.unlink(file.path, () => undefined);
+  return buffer;
+}
+
 export async function createNewsLetterController(req: Request, res: Response, next: NextFunction) {
   try {
     const { title, publishedAt } = req.body ?? {};
@@ -33,10 +52,7 @@ export async function createNewsLetterController(req: Request, res: Response, ne
       return res.status(400).json({ message: "El documento 'path' es obligatorio" });
     }
 
-    const documentUrl = await uploadToCloudinary(document, "auto");
-    if (!documentUrl) {
-      return res.status(400).json({ message: "Error al subir el documento" });
-    }
+    const documentBuffer = readUploadedFile(document);
 
     let imageUrl: string | undefined;
     const image = files.pathImage?.[0];
@@ -47,11 +63,17 @@ export async function createNewsLetterController(req: Request, res: Response, ne
 
     const created = await createNewsLetter({
       title,
-      path: documentUrl,
+      path: "",
+      document: fileToBinary(documentBuffer),
+      documentMimeType: document.mimetype || "application/octet-stream",
+      documentFileName: document.originalname,
       pathImage: imageUrl,
       publishedAt: publishedAt != null ? Number(publishedAt) : undefined,
     });
-    return res.status(201).json(created);
+
+    const path = buildDocumentPath(req, String(created._id));
+    const updated = await updateNewsLetter(String(created._id), { path });
+    return res.status(201).json(updated);
   } catch (err) {
     next(err as Error);
   }
@@ -77,6 +99,29 @@ export async function getNewsLetterByIdController(req: Request, res: Response, n
   }
 }
 
+export async function getNewsLetterDocumentController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const id = String(req.params.id);
+    const newsLetter = await getNewsLetterDocumentById(id);
+    if (!newsLetter?.document) {
+      return res.status(404).json({ message: "Documento no encontrado" });
+    }
+
+    const fileName = newsLetter.documentFileName || "newsletter";
+    const mimeType = newsLetter.documentMimeType || "application/octet-stream";
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+    return res.send(Buffer.from(newsLetter.document.buffer));
+  } catch (err) {
+    next(err as Error);
+  }
+}
+
 export async function updateNewsLetterController(req: Request, res: Response, next: NextFunction) {
   try {
     const id = String(req.params.id);
@@ -86,17 +131,21 @@ export async function updateNewsLetterController(req: Request, res: Response, ne
       patch.publishedAt = Number(patch.publishedAt);
     }
 
-    // path y pathImage vienen como archivos; no guardar strings del body
     delete patch.path;
     delete patch.pathImage;
+    delete patch.document;
+    delete patch.documentMimeType;
+    delete patch.documentFileName;
 
     const files = getNewsLetterFiles(req);
 
     const document = files.path?.[0];
     if (document) {
-      const documentUrl = await uploadToCloudinary(document, "auto");
-      if (!documentUrl) return res.status(400).json({ message: "Error al subir el documento" });
-      patch.path = documentUrl;
+      const documentBuffer = readUploadedFile(document);
+      patch.document = fileToBinary(documentBuffer);
+      patch.documentMimeType = document.mimetype || "application/octet-stream";
+      patch.documentFileName = document.originalname;
+      patch.path = buildDocumentPath(req, id);
     }
 
     const image = files.pathImage?.[0];

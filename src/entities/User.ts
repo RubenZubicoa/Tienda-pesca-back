@@ -11,6 +11,7 @@ export type User = {
     password: string;
     role: string;
     isProfessional:boolean;
+    country?: string;
     createdAt?: number;
     updatedAt?: number;
     isDeleted?: boolean;

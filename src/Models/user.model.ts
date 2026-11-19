@@ -14,7 +14,14 @@ export async function getUserByEmail(email: string) {
 export async function createUser(user: AddUser) {
   const now = Date.now();
   const hashedPassword = await hashPassword(user.password);
-  const doc: User = { ...user, password: hashedPassword, createdAt: now, updatedAt: now, isDeleted: false };
+  const doc: User = {
+    ...user,
+    country: user.country,
+    password: hashedPassword,
+    createdAt: now,
+    updatedAt: now,
+    isDeleted: false,
+  };
   const result = await database.collection<User>("users").insertOne(doc);
   return { ...doc, _id: result.insertedId };
 }
@@ -28,7 +35,10 @@ export async function getUserById(id: string) {
 }
 
 export async function updateUser(id: string, user: UpdateUser) {
-  return await database.collection<User>("users").updateOne({ _id: new ObjectId(id), isDeleted: { $ne: true } }, { $set: user });
+  return await database.collection<User>("users").updateOne(
+    { _id: new ObjectId(id), isDeleted: { $ne: true } },
+    { $set: { ...user, updatedAt: Date.now() } }
+  );
 }
 
 export async function deleteUser(id: string) {  

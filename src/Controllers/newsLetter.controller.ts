@@ -1,16 +1,16 @@
-import fs from "fs";
 import type { NextFunction, Request, Response } from "express";
 import {
   createNewsLetter,
   deleteNewsLetter,
-  fileToBinary,
   getNewsLetterById,
-  getNewsLetterDocumentById,
   listNewsLetters,
   updateNewsLetter,
 } from "../Models/newsLetter.model";
 import { listNewsLetterSubscriptions } from "../Models/newsLetterSubscription.model";
-import { uploadToCloudinary } from "../libs/cloudinary";
+import {
+  uploadNewsletterDocumentToS3,
+  uploadNewsletterImageToS3,
+} from "../libs/s3";
 import { sendEmail } from "../libs/nodemailer";
 import type { NewsLetter } from "../entities/NewsLetter";
 
@@ -21,22 +21,6 @@ type NewsLetterFiles = {
 
 function getNewsLetterFiles(req: Request): NewsLetterFiles {
   return (req.files as NewsLetterFiles | undefined) ?? {};
-}
-
-function getBaseUrl(req: Request): string {
-  const configured = process.env.PUBLIC_API_URL?.replace(/\/$/, "");
-  if (configured) return configured;
-  return `${req.protocol}://${req.get("host")}`;
-}
-
-function buildDocumentPath(req: Request, id: string): string {
-  return `${getBaseUrl(req)}/newsletters/${id}/document`;
-}
-
-function readUploadedFile(file: Express.Multer.File): Buffer {
-  const buffer = fs.readFileSync(file.path);
-  fs.unlink(file.path, () => undefined);
-  return buffer;
 }
 
 export async function createNewsLetterController(req: Request, res: Response, next: NextFunction) {
@@ -52,28 +36,26 @@ export async function createNewsLetterController(req: Request, res: Response, ne
       return res.status(400).json({ message: "El documento 'path' es obligatorio" });
     }
 
-    const documentBuffer = readUploadedFile(document);
+    const documentUrl = await uploadNewsletterDocumentToS3(document);
+    if (!documentUrl) {
+      return res.status(400).json({ message: "Error al subir el documento" });
+    }
 
     let imageUrl: string | undefined;
     const image = files.pathImage?.[0];
     if (image) {
-      imageUrl = await uploadToCloudinary(image);
+      imageUrl = await uploadNewsletterImageToS3(image);
       if (!imageUrl) return res.status(400).json({ message: "Error al subir la imagen" });
     }
 
     const created = await createNewsLetter({
       title,
-      path: "",
-      document: fileToBinary(documentBuffer),
-      documentMimeType: document.mimetype || "application/octet-stream",
-      documentFileName: document.originalname,
+      path: documentUrl,
       pathImage: imageUrl,
       publishedAt: publishedAt != null ? Number(publishedAt) : undefined,
     });
 
-    const path = buildDocumentPath(req, String(created._id));
-    const updated = await updateNewsLetter(String(created._id), { path });
-    return res.status(201).json(updated);
+    return res.status(201).json(created);
   } catch (err) {
     next(err as Error);
   }
@@ -99,6 +81,7 @@ export async function getNewsLetterByIdController(req: Request, res: Response, n
   }
 }
 
+/** Redirige a la URL de S3 del documento (compatibilidad con enlaces antiguos). */
 export async function getNewsLetterDocumentController(
   req: Request,
   res: Response,
@@ -106,17 +89,11 @@ export async function getNewsLetterDocumentController(
 ) {
   try {
     const id = String(req.params.id);
-    const newsLetter = await getNewsLetterDocumentById(id);
-    if (!newsLetter?.document) {
+    const newsLetter = await getNewsLetterById(id);
+    if (!newsLetter?.path) {
       return res.status(404).json({ message: "Documento no encontrado" });
     }
-
-    const fileName = newsLetter.documentFileName || "newsletter";
-    const mimeType = newsLetter.documentMimeType || "application/octet-stream";
-
-    res.setHeader("Content-Type", mimeType);
-    res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
-    return res.send(Buffer.from(newsLetter.document.buffer));
+    return res.redirect(newsLetter.path);
   } catch (err) {
     next(err as Error);
   }
@@ -133,24 +110,19 @@ export async function updateNewsLetterController(req: Request, res: Response, ne
 
     delete patch.path;
     delete patch.pathImage;
-    delete patch.document;
-    delete patch.documentMimeType;
-    delete patch.documentFileName;
 
     const files = getNewsLetterFiles(req);
 
     const document = files.path?.[0];
     if (document) {
-      const documentBuffer = readUploadedFile(document);
-      patch.document = fileToBinary(documentBuffer);
-      patch.documentMimeType = document.mimetype || "application/octet-stream";
-      patch.documentFileName = document.originalname;
-      patch.path = buildDocumentPath(req, id);
+      const documentUrl = await uploadNewsletterDocumentToS3(document);
+      if (!documentUrl) return res.status(400).json({ message: "Error al subir el documento" });
+      patch.path = documentUrl;
     }
 
     const image = files.pathImage?.[0];
     if (image) {
-      const imageUrl = await uploadToCloudinary(image);
+      const imageUrl = await uploadNewsletterImageToS3(image);
       if (!imageUrl) return res.status(400).json({ message: "Error al subir la imagen" });
       patch.pathImage = imageUrl;
     }

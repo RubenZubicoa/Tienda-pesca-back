@@ -8,11 +8,11 @@ import {
   listCategories,
   updateCategory,
 } from "../Models/category.model";
-import { uploadToCloudinary } from "../libs/cloudinary";
+import { uploadCategoryImageToS3 } from "../libs/s3";
 
 async function uploadCategoryImageFile(file?: Express.Multer.File): Promise<string | undefined> {
   if (!file) return undefined;
-  const imageUrl = await uploadToCloudinary(file);
+  const imageUrl = await uploadCategoryImageToS3(file);
   if (!imageUrl) {
     throw new CategoryValidationError("Error al subir la imagen de la categoría");
   }

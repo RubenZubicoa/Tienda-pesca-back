@@ -8,7 +8,7 @@ import {
   listProducts,
   updateProduct,
 } from "../Models/product.model";
-import { uploadToCloudinary } from "../libs/cloudinary";
+import { uploadProductImageToS3 } from "../libs/s3";
 
 function parseStringArray(value: unknown): string[] | undefined {
   if (value === undefined || value === null) return undefined;
@@ -74,7 +74,7 @@ function parseProductOptions(value: unknown): ProductOptionPayload[] | undefined
 async function uploadProductImageFiles(files: Express.Multer.File[]): Promise<string[] | null> {
   const imagesUrls: string[] = [];
   for await (const image of files) {
-    const imageUrl = await uploadToCloudinary(image);
+    const imageUrl = await uploadProductImageToS3(image);
     if (!imageUrl) return null;
     imagesUrls.push(imageUrl);
   }

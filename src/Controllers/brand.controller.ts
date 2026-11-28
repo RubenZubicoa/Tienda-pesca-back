@@ -6,7 +6,7 @@ import {
   listBrands,
   updateBrand,
 } from "../Models/brand.model";
-import { uploadToCloudinary } from "../libs/cloudinary";
+import { uploadBrandImageToS3 } from "../libs/s3";
 
 export async function createBrandController(req: Request, res: Response, next: NextFunction) {
   try {
@@ -17,7 +17,7 @@ export async function createBrandController(req: Request, res: Response, next: N
 
     const logo = req.file as Express.Multer.File;
     if (logo) {
-      const logoUrl = await uploadToCloudinary(logo);
+      const logoUrl = await uploadBrandImageToS3(logo);
       if (!logoUrl) return res.status(400).json({ message: "Error al subir la imagen" });
       const created = await createBrand({ name, description, logo: logoUrl });
       return res.status(201).json(created);
@@ -55,7 +55,7 @@ export async function updateBrandController(req: Request, res: Response, next: N
     const patch = req.body ?? {};
     const logo = req.file as Express.Multer.File;
     if (logo) {
-      const logoUrl = await uploadToCloudinary(logo);
+      const logoUrl = await uploadBrandImageToS3(logo);
       if (!logoUrl) return res.status(400).json({ message: "Error al subir la imagen" });
       patch.logo = logoUrl;
     }

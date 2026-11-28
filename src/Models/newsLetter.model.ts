@@ -1,10 +1,8 @@
-import { Binary, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import { database } from "../db/database";
 import type { NewsLetter } from "../entities/NewsLetter";
 
 const collection = database.collection<NewsLetter>("newsletters");
-
-const withoutDocument = { document: 0 as const };
 
 export async function createNewsLetter(
   input: Omit<NewsLetter, "_id" | "createdAt" | "updatedAt" | "isDeleted">
@@ -17,20 +15,12 @@ export async function createNewsLetter(
 
 export async function listNewsLetters() {
   return await collection
-    .find({ isDeleted: { $ne: true } }, { projection: withoutDocument })
+    .find({ isDeleted: { $ne: true } })
     .sort({ publishedAt: -1, createdAt: -1 })
     .toArray();
 }
 
 export async function getNewsLetterById(id: string) {
-  const _id = new ObjectId(id);
-  return await collection.findOne(
-    { _id, isDeleted: { $ne: true } },
-    { projection: withoutDocument }
-  );
-}
-
-export async function getNewsLetterDocumentById(id: string) {
   const _id = new ObjectId(id);
   return await collection.findOne({ _id, isDeleted: { $ne: true } });
 }
@@ -45,18 +35,11 @@ export async function updateNewsLetter(
     { _id, isDeleted: { $ne: true } },
     { $set: { ...patch, updatedAt } }
   );
-  return await collection.findOne(
-    { _id, isDeleted: { $ne: true } },
-    { projection: withoutDocument }
-  );
+  return await collection.findOne({ _id, isDeleted: { $ne: true } });
 }
 
 export async function deleteNewsLetter(id: string) {
   const _id = new ObjectId(id);
   const updatedAt = Date.now();
   await collection.updateOne({ _id }, { $set: { isDeleted: true, updatedAt } });
-}
-
-export function fileToBinary(buffer: Buffer): Binary {
-  return new Binary(buffer);
 }

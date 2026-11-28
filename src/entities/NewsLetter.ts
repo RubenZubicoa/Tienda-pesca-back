@@ -1,14 +1,10 @@
-import { Binary, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 
 export type NewsLetter = {
     _id?: ObjectId;
     title: string;
-    /** URL pública del documento (endpoint API ahora; S3 más adelante) */
+    /** URL pública del documento en S3 (carpeta boletines) */
     path: string;
-    /** Binario temporal en MongoDB hasta migrar a S3 */
-    document?: Binary;
-    documentMimeType?: string;
-    documentFileName?: string;
     pathImage?: string;
     publishedAt?: number;
     createdAt?: number;

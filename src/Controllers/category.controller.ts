@@ -21,13 +21,13 @@ async function uploadCategoryImageFile(file?: Express.Multer.File): Promise<stri
 
 export async function createCategoryController(req: Request, res: Response, next: NextFunction) {
   try {
-    const { label, description, children } = req.body ?? {};
+    const { label, description, children, priority } = req.body ?? {};
     if (!label || typeof label !== "string" || !label.trim()) {
       return res.status(400).json({ message: "El campo 'label' es obligatorio" });
     }
 
     const image = await uploadCategoryImageFile(req.file as Express.Multer.File | undefined);
-    const created = await createCategory({ label, description, image, children });
+    const created = await createCategory({ label, description, image, children, priority });
     return res.status(201).json(created);
   } catch (err) {
     if (err instanceof CategoryValidationError) {
@@ -74,13 +74,13 @@ export async function updateCategoryController(req: Request, res: Response, next
 export async function createSubcategoryController(req: Request, res: Response, next: NextFunction) {
   try {
     const parentId = String(req.params.categoryId);
-    const { label, description } = req.body ?? {};
+    const { label, description, priority } = req.body ?? {};
     if (!label || typeof label !== "string" || !label.trim()) {
       return res.status(400).json({ message: "El campo 'label' es obligatorio" });
     }
 
     const image = await uploadCategoryImageFile(req.file as Express.Multer.File | undefined);
-    const created = await createSubcategory(parentId, { label, description, image });
+    const created = await createSubcategory(parentId, { label, description, image, priority });
     if (!created) return res.status(404).json({ message: "Categoría padre no encontrada" });
     return res.status(201).json(created);
   } catch (err) {
@@ -124,11 +124,12 @@ export async function updateSubcategoryController(req: Request, res: Response, n
 }
 
 async function updateCategoryFromBody(id: string, body: unknown, file?: Express.Multer.File) {
-  const { label, description, children } = (body as Record<string, unknown>) ?? {};
+  const { label, description, children, priority } = (body as Record<string, unknown>) ?? {};
   const patch: {
     label?: string;
     description?: string;
     image?: string;
+    priority?: number | string;
     children?: unknown;
   } = {};
 
@@ -144,6 +145,10 @@ async function updateCategoryFromBody(id: string, body: unknown, file?: Express.
       throw new CategoryValidationError("El campo 'description' debe ser un texto");
     }
     patch.description = description;
+  }
+
+  if (priority !== undefined) {
+    patch.priority = priority as number | string;
   }
 
   const image = await uploadCategoryImageFile(file);

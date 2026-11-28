@@ -38,23 +38,54 @@ export function normalizeChildren(
       throw new CategoryValidationError("Cada subcategoría debe tener un 'label' válido");
     }
 
-    const input = child as { _id?: string; label: string; description?: string; image?: string };
+    const input = child as {
+      _id?: string;
+      label: string;
+      description?: string;
+      image?: string;
+      priority?: number | string;
+    };
     if (typeof input.label !== "string" || !input.label.trim()) {
       throw new CategoryValidationError("Cada subcategoría debe tener un 'label' válido");
     }
 
     const existing = input._id ? existingMap.get(input._id) : undefined;
     const _id = input._id ? new ObjectId(input._id) : new ObjectId();
+    const priority = parsePriority(input.priority);
 
     return {
       _id,
       label: input.label.trim(),
       description: typeof input.description === "string" ? input.description : undefined,
       image: typeof input.image === "string" ? input.image : existing?.image,
+      ...(priority !== undefined ? { priority } : existing?.priority !== undefined ? { priority: existing.priority } : {}),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
   });
+}
+
+export function parsePriority(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    throw new CategoryValidationError("El campo 'priority' debe ser un número");
+  }
+  return parsed;
+}
+
+function sortByPriority(categories: Category[]): Category[] {
+  return [...categories].sort(
+    (a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER)
+  );
+}
+
+function withSortedChildren(category: Category): Category {
+  if (!category.children?.length) return category;
+  return {
+    ...category,
+    children: sortByPriority(category.children).map(withSortedChildren),
+  };
 }
 
 async function resolveRootCategoryId(id: string): Promise<ObjectId | null> {
@@ -73,17 +104,19 @@ export async function createCategory(
   input: Omit<Category, "_id" | "createdAt" | "updatedAt" | "isDeleted">
 ) {
   const now = Date.now();
+  const priority = parsePriority(input.priority);
   const doc: Category = {
     label: input.label.trim(),
     description: input.description,
     image: input.image,
+    ...(priority !== undefined ? { priority } : {}),
     children: input.children ? normalizeChildren(input.children, undefined, now) : undefined,
     createdAt: now,
     updatedAt: now,
     isDeleted: false,
   };
   const result = await collection.insertOne(doc);
-  return { ...doc, _id: result.insertedId };
+  return withSortedChildren({ ...doc, _id: result.insertedId });
 }
 
 export async function createSubcategory(
@@ -97,11 +130,13 @@ export async function createSubcategory(
   if (!parent) return null;
 
   const now = Date.now();
+  const priority = parsePriority(input.priority);
   const child: Category = {
     _id: new ObjectId(),
     label: input.label.trim(),
     description: input.description,
     image: input.image,
+    ...(priority !== undefined ? { priority } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -120,23 +155,28 @@ export async function createSubcategory(
 }
 
 export async function listCategories() {
-  return await collection.find({ isDeleted: { $ne: true } }).toArray();
+  const categories = await collection.find({ isDeleted: { $ne: true } }).toArray();
+  return sortByPriority(categories).map(withSortedChildren);
 }
 
 export async function getCategoryById(id: string) {
   const _id = new ObjectId(id);
   const root = await collection.findOne({ _id, isDeleted: { $ne: true } });
-  if (root) return root;
+  if (root) return withSortedChildren(root);
 
   const parent = await collection.findOne({ "children._id": _id, isDeleted: { $ne: true } });
   if (!parent?.children) return null;
 
-  return parent.children.find((child) => child._id?.equals(_id)) ?? null;
+  const child = parent.children.find((item) => item._id?.equals(_id)) ?? null;
+  return child ? withSortedChildren(child) : null;
 }
 
 export async function updateCategory(
   id: string,
-  patch: Partial<Omit<Category, "_id" | "createdAt" | "children">> & { children?: unknown }
+  patch: Partial<Omit<Category, "_id" | "createdAt" | "children" | "priority">> & {
+    children?: unknown;
+    priority?: number | string;
+  }
 ) {
   const rootId = await resolveRootCategoryId(id);
   if (!rootId) return null;
@@ -161,6 +201,12 @@ export async function updateCategory(
         description:
           typeof patch.description === "string" ? patch.description : child.description,
         image: typeof patch.image === "string" ? patch.image : child.image,
+        ...(patch.priority !== undefined
+          ? (() => {
+              const priority = parsePriority(patch.priority);
+              return priority !== undefined ? { priority } : {};
+            })()
+          : {}),
         updatedAt,
       };
     });
@@ -168,6 +214,10 @@ export async function updateCategory(
     if (typeof patch.label === "string") update.label = patch.label.trim();
     if (patch.description !== undefined) update.description = patch.description;
     if (typeof patch.image === "string") update.image = patch.image;
+    if (patch.priority !== undefined) {
+      const priority = parsePriority(patch.priority);
+      if (priority !== undefined) update.priority = priority;
+    }
     if (patch.children !== undefined) {
       update.children = normalizeChildren(patch.children, existing.children, updatedAt);
     }
@@ -179,7 +229,8 @@ export async function updateCategory(
     { _id: rootId, isDeleted: { $ne: true } },
     { $set: update }
   );
-  return await collection.findOne({ _id: rootId, isDeleted: { $ne: true } });
+  const updated = await collection.findOne({ _id: rootId, isDeleted: { $ne: true } });
+  return updated ? withSortedChildren(updated) : null;
 }
 
 export async function deleteCategory(id: string) {

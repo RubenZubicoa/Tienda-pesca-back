@@ -20,7 +20,7 @@ export type Product = {
     categoryId: string;
     images: string[];
     videoUrl?: string;
-    options?: ProductOption;
+    options?: ProductOption | ProductOption[];
     isFeatured?: boolean;
     isInOffer?: boolean;
     offerPrice?: number;

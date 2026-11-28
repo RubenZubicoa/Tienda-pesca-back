@@ -6,6 +6,7 @@ export type Category = {
     description?: string;
     image?: string;
     children?: Category[];
+    priority?: number;
     createdAt?: number;
     updatedAt?: number;
     isDeleted?: boolean;

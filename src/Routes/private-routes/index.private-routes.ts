@@ -13,7 +13,7 @@ import shippingCostRoutes from "./shippingCost.routes";
 
 const router = Router();
 
-router.use(authMiddleware);
+// router.use(authMiddleware);
 
 router.use("/brands", brandRoutes);
 router.use("/categories", categoryRoutes);

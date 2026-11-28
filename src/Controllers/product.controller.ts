@@ -26,6 +26,51 @@ function parseStringArray(value: unknown): string[] | undefined {
   return undefined;
 }
 
+type ProductOptionPayload = {
+  label: string;
+  options: { id: string; label: string; imageUrl?: string }[];
+};
+
+function parseProductOptions(value: unknown): ProductOptionPayload[] | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+
+  let parsed: unknown = value;
+  if (typeof value === "string") {
+    if (value === "null") return undefined;
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return undefined;
+    }
+  }
+
+  const normalizeGroup = (group: unknown): ProductOptionPayload | null => {
+    if (!group || typeof group !== "object") return null;
+    const record = group as Record<string, unknown>;
+    if (typeof record.label !== "string" || !record.label.trim()) return null;
+
+    const rawOptions = Array.isArray(record.options) ? record.options : [];
+    const options = rawOptions
+      .filter((option): option is Record<string, unknown> => !!option && typeof option === "object")
+      .map((option) => ({
+        id: typeof option.id === "string" && option.id ? option.id : crypto.randomUUID(),
+        label: typeof option.label === "string" ? option.label.trim() : "",
+        ...(typeof option.imageUrl === "string" ? { imageUrl: option.imageUrl } : {}),
+      }))
+      .filter((option) => option.label.length > 0);
+
+    if (options.length === 0) return null;
+    return { label: record.label.trim(), options };
+  };
+
+  if (Array.isArray(parsed)) {
+    return parsed.map(normalizeGroup).filter((group): group is ProductOptionPayload => group !== null);
+  }
+
+  const single = normalizeGroup(parsed);
+  return single ? [single] : undefined;
+}
+
 async function uploadProductImageFiles(files: Express.Multer.File[]): Promise<string[] | null> {
   const imagesUrls: string[] = [];
   for await (const image of files) {
@@ -61,6 +106,8 @@ export async function createProductController(req: Request, res: Response, next:
       return res.status(400).json({ message: "Error al subir la imagen del producto" });
     }
 
+    const parsedOptions = parseProductOptions(options);
+
     const created = await createProduct({
       brandId,
       categoryId,
@@ -70,7 +117,7 @@ export async function createProductController(req: Request, res: Response, next:
       professionalPrice: professionalPrice !== undefined ? Number(professionalPrice) : undefined,
       stock,
       images: imagesUrls,
-      options,
+      ...(parsedOptions !== undefined ? { options: parsedOptions } : {}),
       isFeatured,
       isInOffer,
       offerPrice,
@@ -127,12 +174,17 @@ export async function updateProductController(req: Request, res: Response, next:
     if (!existing) return res.status(404).json({ message: "Product no encontrado" });
 
     const body = req.body ?? {};
-    const { existingImages, images: imagesField, ...rest } = body;
+    const { existingImages, images: imagesField, options, ...rest } = body;
     const patch: Record<string, unknown> = { ...rest };
 
     if (patch.price !== undefined) patch.price = Number(patch.price);
     if (patch.professionalPrice !== undefined) patch.professionalPrice = Number(patch.professionalPrice);
     if (patch.stock !== undefined) patch.stock = Number(patch.stock);
+
+    if (options !== undefined) {
+      const parsedOptions = parseProductOptions(options);
+      patch.options = parsedOptions ?? [];
+    }
 
     const uploadedFiles = (req.files as Express.Multer.File[]) ?? [];
     const parsedExistingImages = parseStringArray(existingImages);

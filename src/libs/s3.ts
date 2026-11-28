@@ -197,25 +197,40 @@ export async function uploadGeneralFileToS3(file: Express.Multer.File) {
   return uploadToS3(file, "files", { compress: false });
 }
 
-/** Elimina un objeto de S3 a partir de su URL (ignora URLs que no sean de este bucket). */
+/** Elimina un objeto de S3 a partir de su URL.
+ * Ignora Cloudinary u otras URLs ajenas; nunca lanza error.
+ */
 export async function deleteFromS3(url?: string | null): Promise<boolean> {
   if (!url?.trim()) return false;
+  // Cloudinary / URLs externas: no intentar borrar
+  if (!url.includes("amazonaws.com")) return false;
 
-  const { bucket, region } = getS3Config();
-  const key = extractS3Key(url.trim(), bucket, region);
-  if (!key) return false;
+  try {
+    const { bucket, region } = getS3Config();
+    const key = extractS3Key(url.trim(), bucket, region);
+    if (!key) return false;
 
-  await createS3Client().send(
-    new DeleteObjectCommand({
-      Bucket: bucket,
-      Key: key,
-    })
-  );
-  return true;
+    await createS3Client().send(
+      new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      })
+    );
+    return true;
+  } catch (err) {
+    console.warn(
+      "[S3] No se pudo eliminar el objeto (se continúa):",
+      url,
+      err instanceof Error ? err.message : err
+    );
+    return false;
+  }
 }
 
-/** Elimina varias URLs de S3; no interrumpe si alguna falla. */
+/** Elimina varias URLs de S3; no interrumpe si alguna falla o no es de S3. */
 export async function deleteManyFromS3(urls: Array<string | null | undefined>): Promise<void> {
-  const unique = [...new Set(urls.filter((url): url is string => typeof url === "string" && !!url.trim()))];
+  const unique = [
+    ...new Set(urls.filter((url): url is string => typeof url === "string" && !!url.trim())),
+  ];
   await Promise.allSettled(unique.map((url) => deleteFromS3(url)));
 }

@@ -278,7 +278,16 @@ export async function deleteProductController(req: Request, res: Response, next:
     if (!existing) return res.status(404).json({ message: "Product no encontrado" });
 
     await deleteProduct(req.params.id as string);
-    await deleteManyFromS3(collectProductS3Urls(existing));
+
+    // Limpieza best-effort: Cloudinary u errores de S3 no deben impedir el borrado
+    try {
+      await deleteManyFromS3(collectProductS3Urls(existing));
+    } catch (cleanupErr) {
+      console.warn(
+        "[S3] Error al limpiar imágenes tras borrar producto:",
+        cleanupErr instanceof Error ? cleanupErr.message : cleanupErr
+      );
+    }
 
     return res.status(204).send();
   } catch (err) {

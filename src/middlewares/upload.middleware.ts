@@ -15,8 +15,16 @@ export function uploadProductImages(req: Request, res: Response, next: NextFunct
     });
   }
 
-  multer.array("images")(req, res, (err) => {
+  // Acepta "images" (varios) o "image" (uno) para no perder la subida si el front usa otro nombre
+  multer.fields([
+    { name: "images", maxCount: 20 },
+    { name: "image", maxCount: 1 },
+  ])(req, res, (err) => {
     if (err) return next(err);
+
+    const files = req.files as { images?: Express.Multer.File[]; image?: Express.Multer.File[] } | undefined;
+    const merged = [...(files?.images ?? []), ...(files?.image ?? [])];
+    (req as Request & { files: Express.Multer.File[] }).files = merged;
     next();
   });
 }

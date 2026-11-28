@@ -132,34 +132,38 @@ export async function signS3Url(url?: string | null, expiresIn = 60 * 60 * 24 * 
 /**
  * Sube un fichero de multer a S3.
  * Si `compress` es true y el archivo es imagen, se comprime antes.
+ * Lee el archivo a Buffer para evitar que el cleanup borre el stream a medias.
  */
 export async function uploadToS3(
   file: Express.Multer.File,
   kind: S3FolderKind,
   options: { compress?: boolean } = {}
 ) {
+  const originalPath = file.path;
   const shouldCompress = options.compress !== false && file.mimetype?.startsWith("image/");
   const prepared = shouldCompress ? await compressImageFile(file) : file;
   const { bucket, region } = getS3Config();
   const folder = getFolder(kind);
   const objectName = s3FileName(prepared);
   const key = `${folder}/${objectName}`;
+  const body = fs.readFileSync(prepared.path);
 
   try {
     await createS3Client().send(
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
-        Body: fs.createReadStream(prepared.path),
-        ContentType: prepared.mimetype,
+        Body: body,
+        ContentType: prepared.mimetype || "application/octet-stream",
+        ContentLength: body.length,
         ContentDisposition: `inline; filename="${objectName.replace(/"/g, "")}"`,
       })
     );
 
     return publicUrl(bucket, region, key);
   } finally {
-    cleanupLocalFile(file.path);
-    if (prepared.path !== file.path) cleanupLocalFile(prepared.path);
+    cleanupLocalFile(originalPath);
+    if (prepared.path !== originalPath) cleanupLocalFile(prepared.path);
   }
 }
 

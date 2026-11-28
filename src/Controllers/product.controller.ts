@@ -71,11 +71,13 @@ function parseProductOptions(value: unknown): ProductOptionPayload[] | undefined
   return single ? [single] : undefined;
 }
 
-async function uploadProductImageFiles(files: Express.Multer.File[]): Promise<string[] | null> {
+async function uploadProductImageFiles(files: Express.Multer.File[]): Promise<string[]> {
   const imagesUrls: string[] = [];
-  for await (const image of files) {
+  for (const image of files) {
     const imageUrl = await uploadProductImageToS3(image);
-    if (!imageUrl) return null;
+    if (!imageUrl) {
+      throw new Error("S3 no devolvió una URL al subir la imagen del producto");
+    }
     imagesUrls.push(imageUrl);
   }
   return imagesUrls;
@@ -101,10 +103,7 @@ export async function createProductController(req: Request, res: Response, next:
     }
 
     const images = (req.files as Express.Multer.File[]) ?? [];
-    const imagesUrls = await uploadProductImageFiles(images);
-    if (!imagesUrls) {
-      return res.status(400).json({ message: "Error al subir la imagen del producto" });
-    }
+    const imagesUrls = images.length > 0 ? await uploadProductImageFiles(images) : [];
 
     const parsedOptions = parseProductOptions(options);
 
@@ -199,10 +198,8 @@ export async function updateProductController(req: Request, res: Response, next:
         return res.status(400).json({ message: "Alguna imagen existente no pertenece al producto" });
       }
 
-      const newImagesUrls = await uploadProductImageFiles(uploadedFiles);
-      if (!newImagesUrls) {
-        return res.status(400).json({ message: "Error al subir la imagen del producto" });
-      }
+      const newImagesUrls =
+        uploadedFiles.length > 0 ? await uploadProductImageFiles(uploadedFiles) : [];
 
       patch.images = [...keptImages, ...newImagesUrls];
     } else if (parsedImagesField !== undefined) {

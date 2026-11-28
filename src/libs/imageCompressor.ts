@@ -11,7 +11,7 @@ export const IMAGE_COMPRESSOR_CONFIG = {
 
 function isCompressibleImage(file: Express.Multer.File) {
   const mime = file.mimetype?.toLowerCase() ?? "";
-  return mime.startsWith("image/") || mime === "application/octet-stream";
+  return mime.startsWith("image/");
 }
 
 function jpegOutputPath(filePath: string) {

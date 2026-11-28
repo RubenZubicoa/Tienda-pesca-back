@@ -8,9 +8,25 @@ import {
   listProducts,
   updateProduct,
 } from "../Models/product.model";
-import { signS3Url, uploadProductImageToS3 } from "../libs/s3";
+import { deleteManyFromS3, signS3Url, uploadProductImageToS3 } from "../libs/s3";
 import type { Product } from "../entities/Product";
 import type { PaginationResponse } from "../entities/PaginationResponse";
+
+function collectProductS3Urls(product: Product): string[] {
+  const urls = [...(product.images ?? [])];
+  const groups = product.options
+    ? Array.isArray(product.options)
+      ? product.options
+      : [product.options]
+    : [];
+
+  for (const group of groups) {
+    for (const option of group.options ?? []) {
+      if (option.imageUrl) urls.push(option.imageUrl);
+    }
+  }
+  return urls;
+}
 
 function parseStringArray(value: unknown): string[] | undefined {
   if (value === undefined || value === null || value === "") return undefined;
@@ -260,7 +276,10 @@ export async function deleteProductController(req: Request, res: Response, next:
   try {
     const existing = await getProductById(req.params.id as string);
     if (!existing) return res.status(404).json({ message: "Product no encontrado" });
+
     await deleteProduct(req.params.id as string);
+    await deleteManyFromS3(collectProductS3Urls(existing));
+
     return res.status(204).send();
   } catch (err) {
     next(err as Error);

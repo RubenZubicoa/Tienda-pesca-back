@@ -8,10 +8,12 @@ import {
   listProducts,
   updateProduct,
 } from "../Models/product.model";
-import { uploadProductImageToS3 } from "../libs/s3";
+import { signS3Url, uploadProductImageToS3 } from "../libs/s3";
+import type { Product } from "../entities/Product";
+import type { PaginationResponse } from "../entities/PaginationResponse";
 
 function parseStringArray(value: unknown): string[] | undefined {
-  if (value === undefined || value === null) return undefined;
+  if (value === undefined || value === null || value === "") return undefined;
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
   if (typeof value === "string") {
     try {
@@ -71,21 +73,50 @@ function parseProductOptions(value: unknown): ProductOptionPayload[] | undefined
   return single ? [single] : undefined;
 }
 
+function getUploadedFiles(req: Request): Express.Multer.File[] {
+  return Array.isArray(req.files) ? (req.files as Express.Multer.File[]) : [];
+}
+
 async function uploadProductImageFiles(files: Express.Multer.File[]): Promise<string[]> {
   const imagesUrls: string[] = [];
   for (const image of files) {
+    console.log("[S3] Subiendo imagen de producto:", image.originalname, image.mimetype, image.size);
     const imageUrl = await uploadProductImageToS3(image);
     if (!imageUrl) {
       throw new Error("S3 no devolvió una URL al subir la imagen del producto");
     }
+    console.log("[S3] Imagen subida:", imageUrl);
     imagesUrls.push(imageUrl);
   }
   return imagesUrls;
 }
 
+async function withSignedImages(product: Product): Promise<Product> {
+  if (!product.images?.length) return product;
+  const images = await Promise.all(
+    product.images.map(async (url) => {
+      if (!url.includes("amazonaws.com")) return url;
+      return signS3Url(url);
+    })
+  );
+  return { ...product, images };
+}
+
 export async function createProductController(req: Request, res: Response, next: NextFunction) {
   try {
-    const { brandId, categoryId, name, description, price, stock, options, isFeatured, isInOffer, offerPrice, professionalPrice } = req.body ?? {};
+    const {
+      brandId,
+      categoryId,
+      name,
+      description,
+      price,
+      stock,
+      options,
+      isFeatured,
+      isInOffer,
+      offerPrice,
+      professionalPrice,
+    } = req.body ?? {};
     const priceNumber = Number(price);
     const stockNumber = Number(stock);
 
@@ -95,16 +126,15 @@ export async function createProductController(req: Request, res: Response, next:
     if (!name || typeof name !== "string") {
       return res.status(400).json({ message: "El campo 'name' es obligatorio" });
     }
-    if (typeof priceNumber !== "number") {
+    if (Number.isNaN(priceNumber)) {
       return res.status(400).json({ message: "El campo 'price' debe ser number" });
     }
-    if (typeof stockNumber !== "number") {
+    if (Number.isNaN(stockNumber)) {
       return res.status(400).json({ message: "El campo 'stock' debe ser number" });
     }
 
-    const images = (req.files as Express.Multer.File[]) ?? [];
+    const images = getUploadedFiles(req);
     const imagesUrls = images.length > 0 ? await uploadProductImageFiles(images) : [];
-
     const parsedOptions = parseProductOptions(options);
 
     const created = await createProduct({
@@ -112,16 +142,17 @@ export async function createProductController(req: Request, res: Response, next:
       categoryId,
       name,
       description,
-      price,
+      price: priceNumber,
       professionalPrice: professionalPrice !== undefined ? Number(professionalPrice) : undefined,
-      stock,
+      stock: stockNumber,
       images: imagesUrls,
       ...(parsedOptions !== undefined ? { options: parsedOptions } : {}),
       isFeatured,
       isInOffer,
       offerPrice,
     });
-    return res.status(201).json(created);
+
+    return res.status(201).json(await withSignedImages(created));
   } catch (err) {
     next(err as Error);
   }
@@ -130,7 +161,8 @@ export async function createProductController(req: Request, res: Response, next:
 export async function listProductsController(_req: Request, res: Response, next: NextFunction) {
   try {
     const products = await listProducts();
-    return res.json(products);
+    const signed = await Promise.all(products.map(withSignedImages));
+    return res.json(signed);
   } catch (err) {
     next(err as Error);
   }
@@ -140,7 +172,7 @@ export async function getProductByIdController(req: Request, res: Response, next
   try {
     const product = await getProductById(req.params.id as string);
     if (!product) return res.status(404).json({ message: "Product no encontrado" });
-    return res.json(product);
+    return res.json(await withSignedImages(product));
   } catch (err) {
     next(err as Error);
   }
@@ -149,18 +181,29 @@ export async function getProductByIdController(req: Request, res: Response, next
 export async function getProductByBrandIdController(req: Request, res: Response, next: NextFunction) {
   try {
     const products = await getProductByBrandId(req.params.brandId as string);
-    return res.json(products);
+    const signed = await Promise.all(products.map(withSignedImages));
+    return res.json(signed);
   } catch (err) {
     next(err as Error);
   }
 }
 
-export async function getProductByCategoryIdController(req: Request, res: Response, next: NextFunction) {
+export async function getProductByCategoryIdController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const page = Number(req.query.page) || 1;
     const pageSize = Number(req.query.pageSize) || 10;
-    const response = await getProductByCategoryId(req.params.categoryId as string, page, pageSize);
-    return res.json(response);
+    const response = await getProductByCategoryId(
+      req.params.categoryId as string,
+      page,
+      pageSize
+    );
+    const signedData = await Promise.all(response.data.map(withSignedImages));
+    const payload: PaginationResponse<Product> = { ...response, data: signedData };
+    return res.json(payload);
   } catch (err) {
     next(err as Error);
   }
@@ -175,9 +218,12 @@ export async function updateProductController(req: Request, res: Response, next:
     const body = req.body ?? {};
     const { existingImages, images: imagesField, options, ...rest } = body;
     const patch: Record<string, unknown> = { ...rest };
+    delete patch.images;
 
     if (patch.price !== undefined) patch.price = Number(patch.price);
-    if (patch.professionalPrice !== undefined) patch.professionalPrice = Number(patch.professionalPrice);
+    if (patch.professionalPrice !== undefined) {
+      patch.professionalPrice = Number(patch.professionalPrice);
+    }
     if (patch.stock !== undefined) patch.stock = Number(patch.stock);
 
     if (options !== undefined) {
@@ -185,30 +231,26 @@ export async function updateProductController(req: Request, res: Response, next:
       patch.options = parsedOptions ?? [];
     }
 
-    const uploadedFiles = (req.files as Express.Multer.File[]) ?? [];
+    const uploadedFiles = getUploadedFiles(req);
     const parsedExistingImages = parseStringArray(existingImages);
     const parsedImagesField = parseStringArray(imagesField);
 
-    if (uploadedFiles.length > 0 || parsedExistingImages !== undefined) {
+    if (uploadedFiles.length > 0) {
+      // Al subir archivos nuevos, conservar las que indique el front o las actuales
       const keptImages =
-        parsedExistingImages !== undefined ? parsedExistingImages : existing.images;
-      const validUrls = new Set(existing.images);
-
-      if (keptImages.some((url) => !validUrls.has(url))) {
-        return res.status(400).json({ message: "Alguna imagen existente no pertenece al producto" });
-      }
-
-      const newImagesUrls =
-        uploadedFiles.length > 0 ? await uploadProductImageFiles(uploadedFiles) : [];
-
+        parsedExistingImages !== undefined ? parsedExistingImages : existing.images ?? [];
+      const newImagesUrls = await uploadProductImageFiles(uploadedFiles);
       patch.images = [...keptImages, ...newImagesUrls];
+      console.log("[S3] Producto actualizado con imágenes:", patch.images);
+    } else if (parsedExistingImages !== undefined) {
+      patch.images = parsedExistingImages;
     } else if (parsedImagesField !== undefined) {
       patch.images = parsedImagesField;
     }
 
     const updated = await updateProduct(id, patch);
     if (!updated) return res.status(404).json({ message: "Product no encontrado" });
-    return res.json(updated);
+    return res.json(await withSignedImages(updated));
   } catch (err) {
     next(err as Error);
   }
@@ -224,4 +266,3 @@ export async function deleteProductController(req: Request, res: Response, next:
     next(err as Error);
   }
 }
-

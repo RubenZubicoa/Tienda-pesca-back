@@ -15,16 +15,14 @@ export function uploadProductImages(req: Request, res: Response, next: NextFunct
     });
   }
 
-  // Acepta "images" (varios) o "image" (uno) para no perder la subida si el front usa otro nombre
-  multer.fields([
-    { name: "images", maxCount: 20 },
-    { name: "image", maxCount: 1 },
-  ])(req, res, (err) => {
+  // any() deja req.files como File[]; fields() lo convierte en objeto y rompe el controlador
+  multer.any()(req, res, (err) => {
     if (err) return next(err);
 
-    const files = req.files as { images?: Express.Multer.File[]; image?: Express.Multer.File[] } | undefined;
-    const merged = [...(files?.images ?? []), ...(files?.image ?? [])];
-    (req as Request & { files: Express.Multer.File[] }).files = merged;
+    const all = (Array.isArray(req.files) ? req.files : []) as Express.Multer.File[];
+    req.files = all.filter(
+      (file) => file.fieldname === "images" || file.fieldname === "image"
+    );
     next();
   });
 }
